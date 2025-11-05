@@ -1,2 +1,20 @@
+# === General ===
+.DS_Store
+*.log
+.env
+.env.*
+__pycache__/
+*.pyc
+
+# === Python backend ===
 backend/venv/
 backend/__pycache__/
+backend/jobboard.db
+backend/instance/
+
+# === Node frontend ===
+jobboard-frontend/node_modules/
+jobboard-frontend/dist/
+jobboard-frontend/.vite/
+jobboard-frontend/.env
+jobboard-frontend/.env.*
