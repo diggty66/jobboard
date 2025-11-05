@@ -1,8 +1,23 @@
 from flask import Blueprint, jsonify, request
-from app import db
+from extensions import db
 from models import Job
 
 job_bp = Blueprint("job", __name__)
+
+@job_bp.route("/jobs/<int:job_id>")
+def get_job_detail(job_id):
+    job = Job.query.get_or_404(job_id)
+    return jsonify({
+        "id": job.id,
+        "title": job.title,
+        "country": job.country,
+        "region": job.region,
+        "visa_type": job.visa_type,
+        "salary": job.salary,
+        "currency": job.currency,
+        "description": job.description,
+        "apply_url": job.apply_url or "https://example.com/apply",  # default placeholder
+    })
 
 @job_bp.route("/countries")
 def get_countries():
@@ -29,7 +44,8 @@ def get_jobs():
             visa_type="Work Visa",
             salary=85000,
             currency="USD",
-            description="Develop scalable applications."
+            description="Develop scalable applications.",
+            apply_url="https://example.com/apply"
         )
         db.session.add(job)
         db.session.commit()
@@ -44,5 +60,6 @@ def get_jobs():
             "salary": j.salary,
             "currency": j.currency,
             "description": j.description,
+            "apply_url": j.apply_url,
         } for j in jobs
     ])
