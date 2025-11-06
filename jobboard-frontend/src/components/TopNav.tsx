@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import LoginModal from "./LoginModal";
 import RegisterModal from "./RegisterModal";
+import { useBackendStatus } from "../hooks/useBackendStatus";
 
 export default function TopNav({
   onMenuToggle,
@@ -11,6 +12,8 @@ export default function TopNav({
   className?: string;
 }) {
   const { user, logout } = useAuth();
+  const apiUrl = import.meta.env.VITE_API_URL;
+  const online = useBackendStatus(apiUrl);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
 
@@ -42,7 +45,14 @@ export default function TopNav({
           </>
         )}
       </div>
-
+      {/* ✅ backend status indicator */}
+      {online === null ? (
+        <div className="w-3 h-3 rounded-full bg-gray-500 animate-pulse ml-3" />
+      ) : online ? (
+        <div className="w-3 h-3 rounded-full bg-green-500 ml-3" />
+      ) : (
+        <div className="w-3 h-3 rounded-full bg-red-500 ml-3" />
+      )}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       {showRegister && <RegisterModal onClose={() => setShowRegister(false)} />}
     </header>

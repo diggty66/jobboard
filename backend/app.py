@@ -34,6 +34,7 @@ def create_app():
     from routes.external.japanjobs_routes import japanjobs_bp
     from routes.external.gaijinpot_routes import gaijinpot_bp
     from routes.aggregate_routes import aggregate_bp
+    from routes.health_routes import health_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api")
     app.register_blueprint(job_bp, url_prefix="/api")
@@ -41,7 +42,8 @@ def create_app():
     app.register_blueprint(japanjobs_bp, url_prefix="/api/japanjobs")
     app.register_blueprint(gaijinpot_bp, url_prefix="/api/gaijinpot")
     app.register_blueprint(aggregate_bp, url_prefix="/api/aggregate")
-
+    app.register_blueprint(health_bp, url_prefix="/api")
+    
     # --- Create tables ---
     with app.app_context():
         db.create_all()
