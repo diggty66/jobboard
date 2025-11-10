@@ -1,22 +1,41 @@
 from flask import Blueprint, jsonify
-from ._normalize import norm_job
+from utils.cache import load_cache, save_cache
+from utils.normalize_jobs import normalize_jobs
 
 indeed_bp = Blueprint("indeed", __name__)
 
 @indeed_bp.route("/jobs")
-def indeed_jobs():
-    # Replace this list with real fetch/adapter when you add credentials
-    results = [
-        norm_job(
-            id="ind-101",
-            title="Backend Engineer",
-            country="Japan",
-            region="Tokyo",
-            visa_type="Work Visa",
-            salary=8000000,
-            currency="JPY",
-            description="Maintain and scale server-side systems.",
-            apply_url="https://jp.indeed.com/viewjob?jk=ind-101",
-        )
+def get_indeed_jobs():
+    source = "indeed"
+
+    cached = load_cache(source)
+    if cached:
+        return jsonify(cached)
+
+    raw_jobs = [
+        {
+            "id": "us123",
+            "jobTitle": "Automotive Technician",
+            "location": "New Jersey",
+            "country": "USA",
+            "salary": 60000,
+            "currency": "USD",
+            "description": "Diagnose and repair vehicles in a fast-paced shop.",
+            "url": "https://www.indeed.com/viewjob?jk=us123",
+        },
+        {
+            "id": "us124",
+            "jobTitle": "React Developer",
+            "location": "California",
+            "country": "USA",
+            "salary": 120000,
+            "currency": "USD",
+            "description": "Work remotely building front-end web applications.",
+            "url": "https://www.indeed.com/viewjob?jk=us124",
+        },
     ]
-    return jsonify(results)
+
+    normalized = normalize_jobs(raw_jobs, source)
+    save_cache(source, normalized)
+
+    return jsonify(normalized)

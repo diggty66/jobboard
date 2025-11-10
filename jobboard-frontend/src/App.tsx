@@ -22,41 +22,92 @@ export default function App() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [source, setSource] = useState<"local" | "indeed" | "japanjobs" | "gaijinpot" | "all">("local");
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 
   // Load countries once
   useEffect(() => {
     getCountries().then(setCountries);
   }, []);
 
-  // Country + region selection (only applies to local DB)
-  const selectCountry = (c: string | null) => {
-    setSelectedCountry(c);
-    if (c) getRegions(c).then(setRegions);
-    else setRegions([]);
-  };
+  const selectCountry = async (country: string | null) => {
+  setSelectedCountry(country);
+  setSelectedRegion(null);
+  setJobs([]);
 
-  const selectRegion = (r: string) => {
-    if (selectedCountry) getJobs({ country: selectedCountry, region: r }).then(setJobs);
-  };
+  if (country) {
+    const regionList = await getRegions(country);
+    setRegions(regionList);
 
-  // Source switching
-  useEffect(() => {
-    if (source === "local") {
-      if (selectedCountry) {
-        getJobs({ country: selectedCountry }).then(setJobs);
-      } else {
-        getJobs().then(setJobs);
+    let fetchedJobs: Job[] = [];
+
+    try {
+      switch (country) {
+        case "Japan":
+          const [gaijin, japanjobs] = await Promise.all([
+            getJobs({ source: "gaijinpot", country }),
+            getJobs({ source: "japanjobs", country }),
+          ]);
+          fetchedJobs = [...gaijin, ...japanjobs];
+          break;
+
+        case "USA":
+          fetchedJobs = await getJobs({ source: "indeed", country });
+          break;
+
+        case "Germany":
+          fetchedJobs = await getJobs({ country });
+          break;
+
+        default:
+          fetchedJobs = await getJobs({ country });
       }
-    } else if (source === "indeed") {
-      getIndeedJobs().then(setJobs);
-    } else if (source === "japanjobs") {
-      getJapanJobs().then(setJobs);
-    } else if (source === "gaijinpot") {
-      getGaijinpotJobs().then(setJobs);
-    } else if (source === "all") {
-      getAllJobs().then(setJobs);
+    } catch (err) {
+      console.error("Error fetching jobs:", err);
     }
-  }, [source, selectedCountry]);
+
+    setJobs(fetchedJobs);
+  } else {
+    setRegions([]);
+  }
+};
+
+  const selectRegion = async (region: string) => {
+  setSelectedRegion(region);
+
+  if (!selectedCountry) return;
+
+  let fetchedJobs: Job[] = [];
+
+  try {
+    switch (selectedCountry) {
+      case "Japan":
+        // Combine both Japan sources
+        const [gaijin, japanjobs] = await Promise.all([
+          getJobs({ source: "gaijinpot", country: selectedCountry, region }),
+          getJobs({ source: "japanjobs", country: selectedCountry, region }),
+        ]);
+        fetchedJobs = [...gaijin, ...japanjobs];
+        break;
+
+      case "USA":
+        // Indeed only
+        fetchedJobs = await getJobs({ source: "indeed", country: selectedCountry, region });
+        break;
+
+      case "Germany":
+        // Local DB or future EU source
+        fetchedJobs = await getJobs({ country: selectedCountry, region });
+        break;
+
+      default:
+        fetchedJobs = await getJobs({ country: selectedCountry, region });
+    }
+  } catch (err) {
+    console.error("Error fetching jobs:", err);
+  }
+
+  setJobs(fetchedJobs);
+};
 
   return (
     <div className="relative grid h-screen grid-rows-[60px_1fr] grid-cols-[220px_1fr]">

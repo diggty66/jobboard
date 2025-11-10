@@ -4,14 +4,16 @@
 export interface Job {
   id: number | string;
   title: string;
-  country: string;
-  region: string;
-  visa_type: string;
-  salary: number;
-  currency: string;
-  description: string;
-  apply_url?: string; // optional in case older data doesn’t have it
+  country?: string;        // not always returned
+  region?: string;         // some listings might not include
+  visa_type?: string;
+  salary?: number;
+  currency?: string;
+  description?: string;
+  company?: string;        // ✅ added — GaijinPot provides this
+  apply_url?: string;      // ✅ optional apply link
 }
+
 
 // Get environment variable safely
 const API_URL = import.meta.env.VITE_API_URL;
@@ -66,12 +68,22 @@ export async function getRegions(country: string): Promise<string[]> {
 export async function getJobs(params: Record<string, string> = {}): Promise<Job[]> {
   if (API_URL) {
     try {
-      const query = new URLSearchParams(params).toString();
-      const res = await fetch(`${API_URL}/jobs${query ? `?${query}` : ""}`);
-      if (!res.ok) throw new Error("Failed to fetch jobs");
+      let endpoint = "/jobs"; // default to local DB
+
+      // ✅ Route dynamically based on source
+      if (params.source === "gaijinpot") endpoint = "/gaijinpot/jobs";
+      else if (params.source === "japanjobs") endpoint = "/japanjobs/jobs";
+      else if (params.source === "indeed") endpoint = "/indeed/jobs";
+
+      const queryParams = { ...params };
+      delete queryParams.source; // don’t pass source to backend query string
+      const query = new URLSearchParams(queryParams).toString();
+
+      const res = await fetch(`${API_URL}${endpoint}${query ? `?${query}` : ""}`);
+      if (!res.ok) throw new Error(`Failed to fetch jobs from ${endpoint}`);
       return res.json();
-    } catch {
-      console.warn("Falling back to mock job data");
+    } catch (error) {
+      console.warn("Falling back to mock job data:", error);
     }
   }
   return mockJobs;

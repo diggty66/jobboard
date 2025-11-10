@@ -1,0 +1,24 @@
+[
+  {
+    "id": "1",
+    "title": "Full Stack Developer",
+    "country": "Japan",
+    "region": "Tokyo",
+    "visa_type": "Work Visa",
+    "salary": 8000000,
+    "currency": "JPY",
+    "description": "Work with a Japanese startup on scalable backend systems.",
+    "apply_url": "https://www.japanjobs.jp/jobs/fullstack-developer/"
+  },
+  {
+    "id": "2",
+    "title": "Marketing Specialist",
+    "country": "Japan",
+    "region": "Kyoto",
+    "visa_type": "Work Visa",
+    "salary": 6000000,
+    "currency": "JPY",
+    "description": "Plan and execute online campaigns for Japanese products.",
+    "apply_url": "https://www.japanjobs.jp/jobs/marketing-specialist/"
+  }
+]
