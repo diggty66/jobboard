@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAllJobs, type Job } from "../api";
+import { getJobs, type Job } from "../api";
 import JobCard from "../components/JobCard";
 import JobModal from "../components/JobModal";
 
@@ -7,7 +7,8 @@ export default function JobsAll() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selected, setSelected] = useState<Job | null>(null);
 
-  useEffect(() => { getAllJobs().then(setJobs); }, []);
+  useEffect(() => { getJobs({ source: "all" }).then(setJobs);
+ }, []);
 
   return (
     <div className="p-6">

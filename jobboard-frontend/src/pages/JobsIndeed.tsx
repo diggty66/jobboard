@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getIndeedJobs, type Job } from "../api";
+import { getJobs, type Job } from "../api";
 import JobCard from "../components/JobCard";
 import JobModal from "../components/JobModal";
 
@@ -7,7 +7,8 @@ export default function JobsIndeed() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selected, setSelected] = useState<Job | null>(null);
 
-  useEffect(() => { getIndeedJobs().then(setJobs); }, []);
+  useEffect(() => { getJobs({ source: "indeed" }).then(setJobs);
+ }, []);
 
   return (
     <div className="p-6">

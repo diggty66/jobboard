@@ -4,19 +4,26 @@
 export interface Job {
   id: number | string;
   title: string;
-  country?: string;        // not always returned
-  region?: string;         // some listings might not include
+  country?: string;
+  region?: string;
   visa_type?: string;
   salary?: number;
   currency?: string;
   description?: string;
-  company?: string;        // ✅ added — GaijinPot provides this
-  apply_url?: string;      // ✅ optional apply link
+  company?: string;
+  apply_url?: string;
 }
 
+type JobSource = "local" | "indeed" | "japanjobs" | "gaijinpot" | "all";
+
+interface GetJobsParams {
+  source?: JobSource;
+  country?: string;
+  region?: string;
+}
 
 // Get environment variable safely
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 // ========== Mock Data ==========
 const mockCountries = ["Japan", "USA", "Germany"];
@@ -39,15 +46,29 @@ const mockJobs: Job[] = [
   },
 ];
 
+// Helper to build full URL
+function buildUrl(path: string, params?: Record<string, string | undefined>) {
+  const query = params
+    ? new URLSearchParams(
+        Object.entries(params).reduce((acc, [k, v]) => {
+          if (v != null && v !== "") acc[k] = v;
+          return acc;
+        }, {} as Record<string, string>)
+      ).toString()
+    : "";
+
+  return `${API_URL}${path}${query ? `?${query}` : ""}`;
+}
+
 // ========== API Functions ==========
 
 export async function getCountries(): Promise<string[]> {
   if (API_URL) {
     try {
-      const res = await fetch(`${API_URL}/countries`);
+      const res = await fetch(buildUrl("/api/countries"));
       if (res.ok) return res.json();
-    } catch {
-      console.warn("Falling back to mock countries data");
+    } catch (err) {
+      console.warn("Falling back to mock countries data", err);
     }
   }
   return mockCountries;
@@ -56,98 +77,79 @@ export async function getCountries(): Promise<string[]> {
 export async function getRegions(country: string): Promise<string[]> {
   if (API_URL) {
     try {
-      const res = await fetch(`${API_URL}/regions?country=${country}`);
+      const res = await fetch(buildUrl("/api/regions", { country }));
       if (res.ok) return res.json();
-    } catch {
-      console.warn("Falling back to mock regions data");
+    } catch (err) {
+      console.warn("Falling back to mock regions data", err);
     }
   }
   return mockRegions[country] || [];
 }
 
-export async function getJobs(params: Record<string, string> = {}): Promise<Job[]> {
-  if (API_URL) {
-    try {
-      let endpoint = "/jobs"; // default to local DB
-
-      // ✅ Route dynamically based on source
-      if (params.source === "gaijinpot") endpoint = "/gaijinpot/jobs";
-      else if (params.source === "japanjobs") endpoint = "/japanjobs/jobs";
-      else if (params.source === "indeed") endpoint = "/indeed/jobs";
-
-      const queryParams = { ...params };
-      delete queryParams.source; // don’t pass source to backend query string
-      const query = new URLSearchParams(queryParams).toString();
-
-      const res = await fetch(`${API_URL}${endpoint}${query ? `?${query}` : ""}`);
-      if (!res.ok) throw new Error(`Failed to fetch jobs from ${endpoint}`);
-      return res.json();
-    } catch (error) {
-      console.warn("Falling back to mock job data:", error);
-    }
+export async function getJobs(params: GetJobsParams = {}): Promise<Job[]> {
+  // If there's no API URL at all, we're in pure mock mode
+  if (!API_URL) {
+    return mockJobs;
   }
-  return mockJobs;
+
+  try {
+    let endpoint = "/api/jobs"; // default local DB
+
+    switch (params.source) {
+      case "gaijinpot":
+        endpoint = "/api/gaijinpot/jobs";
+        break;
+      case "japanjobs":
+        endpoint = "/api/japanjobs/jobs";
+        break;
+      case "indeed":
+        endpoint = "/api/indeed/jobs";
+        break;
+      case "all":
+        endpoint = "/api/aggregate/all";
+        break;
+      case "local":
+      case undefined:
+        endpoint = "/api/jobs";
+        break;
+    }
+
+    const { country, region } = params;
+
+    const res = await fetch(
+      buildUrl(endpoint, {
+        country,
+        region,
+      })
+    );
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch jobs from ${endpoint} (status ${res.status})`);
+    }
+
+    return res.json();
+  } catch (error) {
+    console.warn("Error fetching jobs:", error);
+
+    // If the backend is reachable but a specific source fails,
+    // don't inject mock data for external APIs — just say "no jobs".
+    if (params.source && params.source !== "local") {
+      return [];
+    }
+
+    // For local DB / generic, you *may* still want a mock for demo
+    return mockJobs;
+  }
 }
 
-export async function getJobById(id: number): Promise<Job | null> {
+export async function getJobById(id: number | string): Promise<Job | null> {
   if (API_URL) {
     try {
-      const res = await fetch(`${API_URL}/jobs/${id}`);
+      const res = await fetch(buildUrl(`/api/jobs/${id}`));
       if (res.ok) return res.json();
-    } catch {
-      console.warn("Failed to fetch job details, falling back to mock");
+    } catch (err) {
+      console.warn("Failed to fetch job details, falling back to mock", err);
     }
   }
   return mockJobs.find((j) => j.id === id) || null;
-}
-
-// --- External APIs ---
-
-export async function getIndeedJobs(): Promise<Job[]> {
-  if (API_URL) {
-    try {
-      const res = await fetch(`${API_URL}/indeed/jobs`);
-      if (res.ok) return res.json();
-    } catch {
-      console.warn("Failed to fetch Indeed jobs");
-    }
-  }
-  return mockJobs;
-}
-
-export async function getJapanJobs(): Promise<Job[]> {
-  if (API_URL) {
-    try {
-      const res = await fetch(`${API_URL}/japanjobs/jobs`);
-      if (res.ok) return res.json();
-    } catch {
-      console.warn("Failed to fetch JapanJobs");
-    }
-  }
-  return mockJobs;
-}
-
-export async function getGaijinpotJobs(): Promise<Job[]> {
-  if (API_URL) {
-    try {
-      const res = await fetch(`${API_URL}/gaijinpot/jobs`);
-      if (res.ok) return res.json();
-    } catch {
-      console.warn("Failed to fetch GaijinPot jobs");
-    }
-  }
-  return mockJobs;
-}
-
-// --- Aggregate (All Sources Combined) ---
-export async function getAllJobs(): Promise<Job[]> {
-  if (API_URL) {
-    try {
-      const res = await fetch(`${API_URL}/aggregate/all`);
-      if (res.ok) return res.json();
-    } catch {
-      console.warn("Falling back to mock job data");
-    }
-  }
-  return mockJobs;
 }

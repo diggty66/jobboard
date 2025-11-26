@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 
 interface Props {
   countries: string[];
+  regions: string[]; // 👈 ADD THIS
   selectedCountry: string | null;
   onCountrySelect: (c: string | null) => void;
   onRegionSelect: (r: string) => void;
@@ -13,6 +14,7 @@ interface Props {
 
 export default function LeftNav({
   countries,
+  regions,
   selectedCountry,
   onCountrySelect,
   onRegionSelect,
@@ -54,6 +56,7 @@ export default function LeftNav({
         <div className="absolute top-[18px] left-0 w-full border-b border-gray-200 dark:border-gray-700" />
         <div className="p-4">
           {!selectedCountry ? (
+            // ---------- Country list ----------
             countries.map((c) => (
               <div
                 key={c}
@@ -73,35 +76,54 @@ export default function LeftNav({
                 ← All Countries
               </div>
 
-              {/* Japan region / prefecture drill-down */}
-              {selectedCountry === "Japan" &&
-                japanRegions.map((region) => (
-                  <div key={region.code}>
-                    <div
-                      className="cursor-pointer font-semibold text-blue-700 dark:text-blue-300 hover:underline"
-                      onClick={() =>
-                        setExpandedRegion(
-                          expandedRegion === region.code ? null : region.code
-                        )
-                      }
-                    >
-                      {expandedRegion === region.code ? "▼" : "▶"} {region.name}
+              {/* ---------- Japan: region/prefecture drill-down ---------- */}
+              {selectedCountry === "Japan" && (
+                <>
+                  {japanRegions.map((region) => (
+                    <div key={region.code}>
+                      <div
+                        className="cursor-pointer font-semibold text-blue-700 dark:text-blue-300 hover:underline"
+                        onClick={() =>
+                          setExpandedRegion(
+                            expandedRegion === region.code ? null : region.code
+                          )
+                        }
+                      >
+                        {expandedRegion === region.code ? "▼" : "▶"}{" "}
+                        {region.name}
+                      </div>
+                      {expandedRegion === region.code && (
+                        <ul className="ml-4 mt-1">
+                          {region.prefectures.map((p) => (
+                            <li
+                              key={p.code}
+                              onClick={() => onRegionSelect(p.code)}
+                              className="cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+                            >
+                              {p.name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                    {expandedRegion === region.code && (
-                      <ul className="ml-4 mt-1">
-                        {region.prefectures.map((p) => (
-                          <li
-                            key={p.code}
-                            onClick={() => onRegionSelect(p.code)}
-                            className="cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
-                          >
-                            {p.name}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </>
+              )}
+
+              {/* ---------- Non-Japan: flat region list from props ---------- */}
+              {selectedCountry !== "Japan" && regions.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {regions.map((r) => (
+                    <li
+                      key={r}
+                      onClick={() => onRegionSelect(r)}
+                      className="cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+                    >
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
         </div>

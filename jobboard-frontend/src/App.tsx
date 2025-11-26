@@ -1,124 +1,126 @@
+// src/App.tsx
 import { useEffect, useState } from "react";
-import {
-  getCountries,
-  getRegions,
-  getJobs,
-  getIndeedJobs,
-  getJapanJobs,
-  getGaijinpotJobs,
-  getAllJobs,
-  type Job,
-} from "./api";
+import { getCountries, getRegions, getJobs, type Job } from "./api";
 
 import TopNav from "./components/TopNav";
 import LeftNav from "./components/LeftNav";
 import JobList from "./components/JobList";
 import MapBackground from "./components/MapBackground";
 
+const PAGE_SIZE = 100;
+
 export default function App() {
   const [countries, setCountries] = useState<string[]>([]);
-  const [regions, setRegions] = useState<string[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);            // 👈 matches LeftNav Props
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [source, setSource] = useState<"local" | "indeed" | "japanjobs" | "gaijinpot" | "all">("local");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
 
   // Load countries once
   useEffect(() => {
-    getCountries().then(setCountries);
+    getCountries()
+      .then(setCountries)
+      .catch((err) => console.error("Error fetching countries:", err));
   }, []);
 
+  // ---------- Country selection ----------
+
   const selectCountry = async (country: string | null) => {
-  setSelectedCountry(country);
-  setSelectedRegion(null);
-  setJobs([]);
+    setSelectedCountry(country);
+    setSelectedRegion(null);
+    setJobs([]);
+    setPage(1);
 
-  if (country) {
-    const regionList = await getRegions(country);
-    setRegions(regionList);
+    if (!country) {
+      // Back to "All countries" state
+      setRegions([]);
+      return;
+    }
 
-    let fetchedJobs: Job[] = [];
+    // For non-Japan, we fetch regions from backend
+    try {
+      const regionList = await getRegions(country);
+      setRegions(regionList);
+    } catch (err) {
+      console.warn("Error fetching regions, leaving empty:", err);
+      setRegions([]);
+    }
+
+    let fetched: Job[] = [];
 
     try {
       switch (country) {
-        case "Japan":
+        case "Japan": {
+          // Combine GaijinPot + JapanJobs
           const [gaijin, japanjobs] = await Promise.all([
             getJobs({ source: "gaijinpot", country }),
             getJobs({ source: "japanjobs", country }),
           ]);
-          fetchedJobs = [...gaijin, ...japanjobs];
+          fetched = [...gaijin, ...japanjobs];
           break;
-
-        case "USA":
-          fetchedJobs = await getJobs({ source: "indeed", country });
+        }
+        case "USA": {
+          // Indeed for USA
+          fetched = await getJobs({ source: "indeed", country });
           break;
-
-        case "Germany":
-          fetchedJobs = await getJobs({ country });
-          break;
-
-        default:
-          fetchedJobs = await getJobs({ country });
+        }
+        default: {
+          // Local DB / default for other countries
+          fetched = await getJobs({ country });
+        }
       }
     } catch (err) {
       console.error("Error fetching jobs:", err);
     }
+    setAllJobs(fetched);
+    setJobs(fetched);
+  };
 
-    setJobs(fetchedJobs);
-  } else {
-    setRegions([]);
-  }
-};
+  // ---------- Region selection (prefectures / states / etc.) ----------
 
-  const selectRegion = async (region: string) => {
-  setSelectedRegion(region);
+    const selectRegion = async (region: string) => {
+    setSelectedRegion(region);
+    setPage(1);
 
-  if (!selectedCountry) return;
+    if (!selectedCountry) return;
 
-  let fetchedJobs: Job[] = [];
+    // client-side filtering of the full dataset
+    const regionLower = region.toLowerCase();
 
-  try {
-    switch (selectedCountry) {
-      case "Japan":
-        // Combine both Japan sources
-        const [gaijin, japanjobs] = await Promise.all([
-          getJobs({ source: "gaijinpot", country: selectedCountry, region }),
-          getJobs({ source: "japanjobs", country: selectedCountry, region }),
-        ]);
-        fetchedJobs = [...gaijin, ...japanjobs];
-        break;
+    const filtered = allJobs.filter((job) => {
+      const jobRegion = (job.region || "").toLowerCase();
+      const jobTitle = job.title.toLowerCase();
+      return (
+        jobRegion.includes(regionLower) ||
+        jobTitle.includes(regionLower)
+      );
+    });
 
-      case "USA":
-        // Indeed only
-        fetchedJobs = await getJobs({ source: "indeed", country: selectedCountry, region });
-        break;
+    setJobs(filtered);
+  };
 
-      case "Germany":
-        // Local DB or future EU source
-        fetchedJobs = await getJobs({ country: selectedCountry, region });
-        break;
+  // ---------- Pagination ----------
 
-      default:
-        fetchedJobs = await getJobs({ country: selectedCountry, region });
-    }
-  } catch (err) {
-    console.error("Error fetching jobs:", err);
-  }
-
-  setJobs(fetchedJobs);
-};
+  const totalPages = Math.max(1, Math.ceil(jobs.length / PAGE_SIZE));
+  const startIndex = (page - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const visibleJobs = jobs.slice(startIndex, endIndex);
 
   return (
     <div className="relative grid h-screen grid-rows-[60px_1fr] grid-cols-[220px_1fr]">
       <MapBackground />
+
       <TopNav
-        onMenuToggle={() => setMenuOpen(!menuOpen)}
+        onMenuToggle={() => setMenuOpen((open) => !open)}
         className="col-span-2 row-[1]"
       />
+
       <LeftNav
         countries={countries}
-        regions={regions}
+        regions={regions}                    // 👈 now provided
         selectedCountry={selectedCountry}
         onCountrySelect={selectCountry}
         onRegionSelect={selectRegion}
@@ -126,23 +128,47 @@ export default function App() {
         setOpen={setMenuOpen}
         className="row-[2] col-[1]"
       />
+
       <div className="row-[2] col-[2] p-4 flex flex-col">
-        <div className="mb-4 flex items-center gap-2">
-          <label className="font-semibold">Source:</label>
-          <select
-            value={source}
-            onChange={(e) => setSource(e.target.value as any)}
-            className="border rounded p-1"
-          >
-            <option value="local">Local DB</option>
-            <option value="indeed">Indeed</option>
-            <option value="japanjobs">JapanJobs</option>
-            <option value="gaijinpot">GaijinPot</option>
-            <option value="all">All Sources</option>
-          </select>
+        <div className="mb-2 text-sm text-gray-600">
+          Country:{" "}
+          <span className="font-semibold">
+            {selectedCountry ?? "All"}
+          </span>
+          {selectedRegion && (
+            <>
+              {" "}
+              / Region: <span className="font-semibold">{selectedRegion}</span>
+            </>
+          )}
         </div>
 
-        <JobList jobs={jobs} className="flex-1 overflow-y-auto" />
+        <JobList jobs={visibleJobs} className="flex-1 overflow-y-auto" />
+
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Prev
+          </button>
+
+          <span className="text-sm">
+            Page {page} of {totalPages}{" "}
+            <span className="text-gray-500">
+              ({jobs.length} jobs total, showing {visibleJobs.length})
+            </span>
+          </span>
+
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );

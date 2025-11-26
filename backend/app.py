@@ -42,7 +42,7 @@ def create_app():
     app.register_blueprint(japanjobs_bp, url_prefix="/api/japanjobs")
     app.register_blueprint(gaijinpot_bp, url_prefix="/api/gaijinpot")
     app.register_blueprint(aggregate_bp, url_prefix="/api/aggregate")
-    app.register_blueprint(health_bp, url_prefix="/api")
+    app.register_blueprint(health_bp)
     
     # --- Create tables ---
     with app.app_context():

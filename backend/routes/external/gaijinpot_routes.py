@@ -1,16 +1,18 @@
+# backend/routes/external/gaijinpot_routes.py
 from flask import Blueprint, jsonify, request
-from utils.scrape_gaijinpot_feed import fetch_gaijinpot_jobs_feed
+from utils.scrape_gaijinpot import fetch_gaijinpot_jobs
 
 gaijinpot_bp = Blueprint("gaijinpot", __name__)
 
-@gaijinpot_bp.route("/api/gaijinpot/jobs")
+@gaijinpot_bp.route("/jobs", methods=["GET"])
 def gaijinpot_jobs():
     region = request.args.get("region")
-    jobs = fetch_gaijinpot_jobs_feed()
 
-    # If region is provided, match roughly (e.g., JP-13 = Tokyo)
-    if region:
-        region_lower = region.lower()
-        jobs = [j for j in jobs if region_lower in (j.get("region", "").lower())]
+    try:
+        # limit=None → scrape ALL available pages
+        jobs = fetch_gaijinpot_jobs(limit=None, region=region)
+    except Exception as e:
+        print(f"[GaijinPot] Error while scraping:", e)
+        return jsonify([]), 500
 
     return jsonify(jobs)
